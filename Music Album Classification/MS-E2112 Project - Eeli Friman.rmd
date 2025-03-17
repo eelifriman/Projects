@@ -1,0 +1,206 @@
+---
+title: "MSA Project"
+---
+
+
+Dataset:
+```{r}
+library(hexbin)
+data_original <- read.csv("Coldplay.csv")
+data <- data_original[,-c(1, 3, 5, 11, 15)]
+data <- data[data$duration > 120, ]
+
+
+albums_to_remove <- c("Live in Buenos Aires", "Ghost Stories Live 2014", "Live 2012", "LeftRightLeftRightLeft (Live)",
+                      "Live 2003", "Love in Tokyo", "A Head Full of Dreams Tour Edition",
+                      "Viva La Vida (Prospekt's March Edition)", "A Rush of Blood to the Head", "Ghost Stories", "Everyday Life")
+
+data <- data[!(data$album_name %in% albums_to_remove), ]
+albums <- unique(data$album_name)
+albums
+
+rownames(data) <- c(1:65)
+
+```
+
+
+
+```{r}
+
+# colors <- c(rgb(0, 0, 1, 0.5),
+#             rgb(1, 0, 0, 0.5), 
+#             rgb(0, 1, 0, 0.5),  
+#             rgb(1, 1, 0, 0.5),  
+#             rgb(1, 0, 1, 0.5),   
+#             rgb(0, 1, 1, 0.5),   
+#             rgb(0.5, 0, 0, 0.5),
+#             rgb(0, 0.5, 0, 0.5),
+#             rgb(0, 0, 0.5, 0.5))
+# 
+# pch_values <- 1:length(albums) + 14
+# pch_mapping <- setNames(pch_values, albums)
+# 
+# col_mapping <- setNames(colors, albums)
+# pairs(data[, c(1, 3:11)], gap = 0, upper.panel = NULL, pch = pch_mapping[data$album_name], col = col_mapping[data$album_name], cex = 0.8, cex.labels = 1)
+
+#pairs(lower.panel = data[, c(1, 3:11)], gap = 0, upper.panel = NULL, cex = 0.8, cex.labels = 1.5, pch = 16,
+      #main = "Pairwise scatterplot of song properties")
+
+plot_lower <- function(x, y, ...) {
+  points(x, y, ...)  # Scatter plot without axes labels
+}
+
+plot_upper <- function(x, y, labels, ...) {
+  n <- length(x)
+  corr <- cor(x, y)
+  x_center <- mean(par("usr")[1:2])
+  y_center <- mean(par("usr")[3:4])
+  text(x_center, y_center, round(corr, 3), cex = 1.5, col = "black", pos = 1.3)
+  axes = FALSE
+}
+
+# Plot
+pairs(lower.panel = plot_lower, gap = 0, upper.panel = plot_upper, cex = 0.8, cex.labels = 1.5, pch = 16,
+      main = "Pairwise scatterplot of song attributes", data[, c(1, 3:11)], xaxt = "n", yaxt = "n", col = "blue")
+```
+
+
+
+MULTIVARIATE ANALYSIS
+LDA
+```{r}
+library(MASS)
+LDA <- lda(album_name ~ ., data = data)
+
+
+scaling <- LDA$scaling
+norm_lda <- norm(scaling, type = "2")
+scaled_lda <- scaling/norm_lda
+scaled_lda
+
+norm(scaled_lda, type="2")
+
+```
+
+
+```{r}
+
+new_obs <- data.frame(duration = 190.73225000,
+                      album_name = "Parachutes",
+                      popularity = 53.41071429,
+                      acousticness = 0.32018159,
+                      danceability = 0.42961518,
+                      energy = 0.80936518,
+                      instrumentalness = 0.23382886,
+                      loudness = -9.62324107,
+                      speechiness = 1,
+                      tempo = 126.21730357,
+                      valence = 0.0876071)
+
+predict(LDA, newdata = new_obs[c(1, 3:11)])$class
+```
+
+
+
+
+
+
+
+
+
+CROSS VALIDATION
+
+
+```{r}
+d_cv <- lda(album_name ~ ., data = data, CV = TRUE)
+result <- data.frame(est = d_cv$class, truth = data[ ,2])
+table(result)
+
+```
+
+
+```{r}
+l <- nrow(data)
+predicted <- rep(NA, l)
+for (i in 1:l) {
+  train <- data[-i, ]
+  test <- data[i, ]
+  predicted[i] <- predict(lda(album_name ~ ., data = train),
+  newdata = test)$class
+}
+predicted <- factor(predicted, levels = c(1:6), labels = c(unique(data$album_name)))
+sum(predicted != data$album_name) / nrow(data)
+
+```
+```{r}
+colors <- c(rgb(0, 0, 1, 0.6),    
+            rgb(1, 0, 0, 0.6),     
+            rgb(0, 1, 0, 0.6),    
+            rgb(1, 0.5, 0, 0.6),   
+            rgb(1, 0, 1, 0.6),    
+            rgb(0, 0, 0, 0.6)) 
+
+pch_values <- 1:length(albums) + 14
+pch_mapping <- setNames(pch_values, albums)
+
+col_mapping <- setNames(colors, albums)
+pairs(data[, c(1, 3:11)], gap = 0, upper.panel = NULL, pch = pch_mapping[data$album_name], col = col_mapping[data$album_name], cex = 1.3, cex.labels = 1, main = "Pairwise scatterplot of song properties", xaxt = "n", yaxt = "n")
+
+axes = FALSE
+par(xpd = TRUE)
+legend(0.6, 0.8, legend = levels(as.factor(data$album_name)), pch = pch_values, 
+       col = colors, title = "Albums", cex = 0.6, pt.cex = 1)
+```
+
+```{r}
+albums
+```
+
+
+```{r}
+par(mfrow = c(2, 5), mai = c(0.5, 0.3, 0.2, 0.1), pty = "s")
+variables <- names(data[,c(1, 3:11)])
+labels <- c("Music of...", "A Head Full...", "Mylo Xyloto", "Viva La Vida...", "X&Y", "Parachutes")
+x <- c(1, 2, 3, 4, 5, 6)
+for (var in 1:length(variables)) {
+    variable_means <- rep(0, 6)
+    for (album in 1:length(albums)){
+        subset_data <- data[data$album_name == albums[album], ]
+         
+        variable_means[album] <- mean(subset_data[[variables[var]]])
+    }
+
+    
+    
+    plot(x, variable_means, xaxt = "n", pch = 16, cex = 1.4, xlab = "", ylab = "", main = variables[var])
+
+    
+    if (var == 3) {
+      mtext("Means of the song attributes of each album", side = 3, line = 1, outer = FALSE, cex = 1)
+    }
+    if (var > 5){
+      axis(1, at = 1:length(albums), labels = labels, las = 2, cex.axis = 1.5)
+    }
+    
+    else {
+      axis(1, at = 1:length(albums), labels = FALSE)
+    }
+    
+
+}
+
+
+```
+
+
+
+
+
+```{r}
+#data[,c(1, 3:11)]
+apply(data[,c(1, 3:11)], 2, mean)
+apply(data[,c(1, 3:11)], 2, sd)
+apply(data[,c(1, 3:11)], 2, median)
+```
+
+
