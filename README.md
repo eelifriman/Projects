@@ -6,5 +6,5 @@ NOTE: Most of the project works have been completed with a very limited time fra
 
 
 
-Thank you for taking the time to view my work! 
+Thank you for taking the time to view my work! \
 -Eeli Friman
