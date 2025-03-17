@@ -1,4 +1,4 @@
-This repository contains project works completed for courses in Aalto University.
+This repository contains project works completed for master level courses in Aalto University.
 
 NOTE: This repository is only meant for employers/recruiters to view. Therefore, the code files are not necessarily written in a form that allows for further application of the implementations.
 
